@@ -1,0 +1,29 @@
+{{- define "stream" }}
+	##---------- X/2 Streaming -------------
+	server { ##This is working for x/2
+		listen					443 ssl;
+        server_name				~{{ .item.site }}-stream-{{ .global.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+		add_header Content-Security-Policy upgrade-insecure-requests;
+				
+		location / {
+			proxy_http_version	1.1;
+			proxy_cache_bypass	$http_upgrade;
+			proxy_set_header Upgrade			$http_upgrade;
+			proxy_set_header Connection			"upgrade";
+			proxy_set_header Host				$host;
+			proxy_set_header X-Real-IP			$remote_addr;
+			proxy_set_header X-Forwarded-For	$proxy_add_x_forwarded_for;
+			proxy_set_header X-Forwarded-Proto	$scheme;
+			proxy_pass http://127.0.0.1:84/; ## Change this
+			proxy_read_timeout 30;
+			proxy_connect_timeout 30;
+			proxy_send_timeout 30;
+        }
+    }
+	server { ##x/2 to https
+       listen 80;
+       server_name ~{{ .item.site }}-stream-{{ .global.Values.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+       rewrite ^(.*) https://{{ .item.site }}-stream-{{ .global.Values.Values.node_role }}.domain.com permanent; ## Change this
+	   add_header Content-Security-Policy upgrade-insecure-requests;
+	}
+{{- end }}

@@ -1,0 +1,10 @@
+port: 1234
+server_name: example.domain.com
+backend: 127.0.0.1:5432
+ssl_enabled: false
+ssl_cert: /etc/nginx/ssl/cert.pem
+ssl_key: /etc/nginx/ssl/key.pem
+upstreams:
+  - 192.168.1.10:5000
+  - 192.168.1.11:5000
+

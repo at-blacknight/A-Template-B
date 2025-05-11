@@ -1,0 +1,20 @@
+upstream backend {
+    {{- range .upstreams }}
+    server {{ . }};
+    {{- end }}
+}
+
+server {
+    listen {{ .port }};
+    server_name {{ .server_name }};
+
+    {{- if .ssl_enabled }}
+    listen 443 ssl;
+    ssl_certificate {{ .ssl_cert }};
+    ssl_certificate_key {{ .ssl_key }};
+    {{- end }}
+
+    location / {
+        proxy_pass http://{{ .backend }};
+    }
+}

@@ -1,0 +1,90 @@
+name: Build Go Application
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Runs on version tags like v1.0.0
+
+# Explicitly set permissions for the entire workflow
+permissions:
+  contents: write  # This is crucial for creating releases
+
+jobs:
+  build:
+    name: Build for multiple platforms
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]  # Linux, Windows, macOS
+        goarch: [amd64, arm64]          # 64-bit architectures
+        include:
+          - ext: ""
+          - goos: "windows"
+            ext: ".exe"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'  # Adjust to match your Go version
+
+      - name: Build
+        run: |
+          mkdir -p builds/${{ matrix.goos }}-${{ matrix.goarch }}
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${{ github.ref_name }}" -o builds/${{ matrix.goos }}-${{ matrix.goarch }}/ATemplateB${{ matrix.ext }}
+
+      - name: Generate Checksum
+        run: |
+          sha256sum builds/${{ matrix.goos }}-${{ matrix.goarch }}/ATemplateB${{ matrix.ext }} > builds/${{ matrix.goos }}-${{ matrix.goarch }}/ATemplateB${{ matrix.ext }}.sha256
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.goos }}-${{ matrix.goarch }}
+          path: builds/${{ matrix.goos }}-${{ matrix.goarch }}/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Determine Release Type
+        id: release_type
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: List and Prepare Artifacts
+        run: |
+          mkdir -p release
+          for item in artifacts/*; do
+            if [ -d "$item" ]; then
+              base=$(basename "$item")
+              (cd "$item" && zip -r "../../release/$base.zip" .)
+            elif [ -f "$item" ]; then
+              cp "$item" release/
+            fi
+          done
+          ls -la release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          prerelease: ${{ steps.release_type.outputs.is_prerelease }}
