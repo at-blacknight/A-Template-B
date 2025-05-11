@@ -32,6 +32,93 @@ jobs:
         with:
           go-version: '1.24'  # Adjust to match your Go version
 
+      - name: Install goversioninfo (Windows only)
+        if: matrix.goos == 'windows' #&& matrix.goarch == 'amd64'
+        run: |
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+      - name: Set Version Variable
+        id: version
+        run: |
+          RAW_VERSION="${GITHUB_REF##*/}"  # Extract tag like v1.2.3-beta.1
+          echo "Raw tag: $RAW_VERSION"
+      
+          # Strip leading 'v'
+          CLEAN_VERSION="${RAW_VERSION#v}"
+      
+          # Extract numeric parts only, fallback to 0s
+          IFS='.-' read -ra PARTS <<< "$CLEAN_VERSION"
+          MAJOR="${PARTS[0]:-0}"
+          MINOR="${PARTS[1]:-0}"
+          PATCH="${PARTS[2]:-0}"
+          BUILD="$GITHUB_RUN_NUMBER"
+      
+          # Format for Windows VERSIONINFO
+          VERSION_RC="$MAJOR,$MINOR,$PATCH,$BUILD"
+          VERSION_STR="$MAJOR.$MINOR.$PATCH.$BUILD"
+
+          echo "MAJOR=$MAJOR" >> $GITHUB_ENV
+          echo "MINOR=$MINOR" >> $GITHUB_ENV
+          echo "PATCH=$PATCH" >> $GITHUB_ENV
+          echo "BUILD=$BUILD" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+          echo "VERSION_RC=$VERSION_RC" >> $GITHUB_ENV
+          echo "VERSION_STR=$VERSION_STR" >> $GITHUB_ENV
+          echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_ENV
+
+      - name: Prepare Windows Resources (rsrc)
+        if: matrix.goos == 'windows' #&& matrix.goarch == 'amd64'
+        run: |
+          cat <<EOF > versioninfo.json
+          {
+            "FixedFileInfo":
+            {
+              "FileVersion": {
+                "Major": $MAJOR,
+                "Minor": $MINOR,
+                "Patch": $PATCH,
+                "Build": $BUILD
+              },
+              "ProductVersion": {
+                "Major": $MAJOR,
+                "Minor": $MINOR,
+                "Patch": $PATCH,
+                "Build": $BUILD
+              },
+              "FileFlagsMask": "3f",
+              "FileFlags ": "00",
+              "FileOS": "40004",
+              "FileType": "01",
+              "FileSubType": "00"
+            },
+            "StringFileInfo":
+            {
+              "CompanyName": "AT-BlacKnight",
+              "FileVersion": "$VERSION_STR",
+              "ProductName": "ATemplateB",
+              "ProductVersion": "$RAW_VERSION"
+            },
+            "VarFileInfo":
+            {
+              "Translation": {
+                "LangID": "0409",
+                "CharsetID": "04B0"
+              }
+            }
+          }
+          EOF
+          cat versioninfo.json
+          
+      # Generate resource file for each architecture
+      - name: Generate .syso for Windows
+        if: matrix.goos == 'windows' #&& matrix.goarch == 'amd64'
+        run: |
+          # Use the architecture from the matrix directly
+          #GOARCH=${{ matrix.goarch }} goversioninfo -o resource_windows_${{ matrix.goarch }}.syso
+          # go generate
+          goversioninfo -platform-specific=true -arm=true
+          ls -la
+
       - name: Build
         run: |
           mkdir -p builds/${{ matrix.goos }}-${{ matrix.goarch }}
@@ -62,6 +149,7 @@ jobs:
         id: release_type
         run: |
           TAG="${{ github.ref_name }}"
+          echo "TAG=$TAG" >> $GITHUB_ENV
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
           else
@@ -75,7 +163,7 @@ jobs:
           for item in artifacts/*; do
             if [ -d "$item" ]; then
               base=$(basename "$item")
-              (cd "$item" && zip -r "../../release/$base.zip" .)
+              (cd "$item" && zip -r "../../release/ATemplateB-$base-$TAG.zip" .)
             elif [ -f "$item" ]; then
               cp "$item" release/
             fi
