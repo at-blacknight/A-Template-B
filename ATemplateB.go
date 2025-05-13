@@ -69,7 +69,7 @@ func main() {
 	templateName := filepath.Base(*templateFile) // Get just the file name
 
 	// Parse all templates in the same directory
-	tmpl, err := template.New(templateName).Funcs(sprig.FuncMap()).ParseGlob(filepath.Join(templateDir, "*.tmpl"))
+	tmpl, err := template.New(templateName).Funcs(sprig.FuncMap()).ParseGlob(filepath.Join(templateDir, "*.tmpl*"))
 	if err != nil {
 		panic(err)
 	}
