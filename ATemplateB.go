@@ -31,32 +31,40 @@ func main() {
 	outputFile := flag.String("output", "nginx.conf", "Path to output file")
 	flag.Parse()
 
-	// If --version flag is passed, print version and exit immediately
+	//always display version in use
+	fmt.Println("Application Version:", version)
+	// If --version flag is passed exit immediately
 	if *versionFlag {
-		fmt.Println("Application Version:", version)
 		os.Exit(0)
 	}
 
 	// Validate inputs
-	if *templateFile == "" || *valuesFile == "" {
-		fmt.Println("Usage: ATemplateB --template=<template>.tmpl --values=<values>.yaml/json --output=<output>.<extension>")
+	if *templateFile == "" {
+		fmt.Println("Usage: ATemplateB --template=<template>.tmpl[.<extension>] [--values=<values>.yaml/json] --output=<output>.<extension>")
 		os.Exit(1)
 	}
 
 	// Load and parse the values file
-	data, err := os.ReadFile(*valuesFile)
-	if err != nil {
-		panic(err)
-	}
+	if *valuesFile != "" {
+		data, err := os.ReadFile(*valuesFile)
+		if err != nil {
+			panic(err)
+		}
 
-	// Determine if the values file is JSON or YAML
-	if json.Valid(data) {
-		err = json.Unmarshal(data, &DynamicConfig)
+		// Determine if the values file is JSON or YAML
+		if json.Valid(data) {
+			err = json.Unmarshal(data, &DynamicConfig)
+		} else {
+			err = yaml.Unmarshal(data, &DynamicConfig)
+		}
+		if err != nil {
+			panic(err)
+		}
 	} else {
-		err = yaml.Unmarshal(data, &DynamicConfig)
-	}
-	if err != nil {
-		panic(err)
+		// No values file provided, initialize empty map to avoid nil pointer in template
+		fmt.Println("You have not provided a values file, an empty map will be used. if this was not intentional please review the usage:")
+		fmt.Println("ATemplateB --template=<template>.tmpl[.<extension>] [--values=<values>.yaml/json] --output=<output>.<extension>")
+		DynamicConfig = make(map[string]interface{})
 	}
 
 	// Wrap DynamicConfig in TemplateContext
@@ -64,12 +72,41 @@ func main() {
 		Values: DynamicConfig,
 	}
 
+	// Add getFile support
+	funcMap := sprig.FuncMap()
+	funcMap["getFile"] = func(path string) string {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Sprintf("# ERROR: could not read %s: %v", path, err)
+		}
+		return string(content)
+	}
+	// getYaml: parse & pretty format YAML
+	funcMap["getYaml"] = func(path string) string {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Sprintf("# ERROR: could not read %s: %v", path, err)
+		}
+
+		var node yaml.Node
+		err = yaml.Unmarshal(data, &node)
+		if err != nil {
+			return fmt.Sprintf("# ERROR: could not parse YAML %s: %v", path, err)
+		}
+
+		formatted, err := yaml.Marshal(&node)
+		if err != nil {
+			return fmt.Sprintf("# ERROR: could not format YAML %s: %v", path, err)
+		}
+
+		return string(formatted)
+	}
+
 	// Extract the directory from the provided template file path
 	templateDir := filepath.Dir(*templateFile)
 	templateName := filepath.Base(*templateFile) // Get just the file name
-
 	// Parse all templates in the same directory
-	tmpl, err := template.New(templateName).Funcs(sprig.FuncMap()).ParseGlob(filepath.Join(templateDir, "*.tmpl*"))
+	tmpl, err := template.New(templateName).Funcs(funcMap).ParseGlob(filepath.Join(templateDir, "*.tmpl*"))
 	if err != nil {
 		panic(err)
 	}
