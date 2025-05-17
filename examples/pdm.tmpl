@@ -2,7 +2,7 @@
 	##---------- Cloud Cast BDS -------------s
 	server { ##CCS BDS PDM
 		listen			443 ssl;
-        server_name  	~{{ .item.site }}-pdm-{{ .global.node_role }}(\.macsc\.net\.au)?$;
+        server_name  	~{{ .item.site }}-pdm-{{ .global.node_role }}(\.domain\.com)?$;
 		add_header 		Content-Security-Policy upgrade-insecure-requests;
 				
 		location / {
@@ -22,7 +22,7 @@
     }
 	server { ##CCS BDS to https
        listen 80;
-       server_name ~{{ .item.site }}-pdm-{{ .global.node_role }}(\.macsc\.net\.au)?$;
+       server_name ~{{ .item.site }}-pdm-{{ .global.node_role }}(\.domain\.com)?$;
        rewrite ^(.*) https://{{ .item.site }}-pdm-{{ .global.node_role }}.domain.com permanent;
 	   add_header Content-Security-Policy 		upgrade-insecure-requests;
 	}

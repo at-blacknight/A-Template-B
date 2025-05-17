@@ -2,7 +2,7 @@
 	##---------- X/2 Streaming -------------
 	server { ##This is working for x/2
 		listen					443 ssl;
-        server_name				~{{ .item.site }}-stream-{{ .global.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+        server_name				~{{ .item.site }}-stream-{{ .global.Values.node_role }}(\.domain\.com)?$; ## Change this
 		add_header Content-Security-Policy upgrade-insecure-requests;
 				
 		location / {
@@ -22,7 +22,7 @@
     }
 	server { ##x/2 to https
        listen 80;
-       server_name ~{{ .item.site }}-stream-{{ .global.Values.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+       server_name ~{{ .item.site }}-stream-{{ .global.Values.Values.node_role }}(\.domain\.com)?$; ## Change this
        rewrite ^(.*) https://{{ .item.site }}-stream-{{ .global.Values.Values.node_role }}.domain.com permanent; ## Change this
 	   add_header Content-Security-Policy upgrade-insecure-requests;
 	}

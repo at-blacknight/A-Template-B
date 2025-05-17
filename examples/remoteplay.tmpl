@@ -4,7 +4,7 @@
 	##---------- HTTPS Remote Play -------------
 	server { ##HTTPS Remote Play
 		listen					443 ssl;
-        server_name				~{{ .item.site }}-listen(\.macsc\.net\.au)?$; ## Change this
+        server_name				~{{ .item.site }}-listen(\.domain\.com)?$; ## Change this
 				
 		location / {
 			proxy_http_version	1.1;
@@ -23,7 +23,7 @@
     }
 	server { ##send RemotePlay to https
        listen 80;
-       server_name ~{{ .item.site }}-listen(\.macsc\.net\.au)?$; ## Change this
+       server_name ~{{ .item.site }}-listen(\.domain\.com)?$; ## Change this
        rewrite ^(.*) https://{{ .item.site }}-listen.domain.com permanent; ## Change this
 	}
 {{- end }}

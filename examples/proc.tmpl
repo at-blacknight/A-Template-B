@@ -2,7 +2,7 @@
 	##---------- Processor {{ .item.instance }} Stereo Tools -------------
 	server {
 		listen			443 ssl;
-        server_name  	~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+        server_name  	~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$; ## Change this
 		add_header Content-Security-Policy upgrade-insecure-requests;
 				
 		location / {
@@ -23,7 +23,7 @@
     }
 	server { ## Processor {{ .item.instance }} Stereo Tools to https
        listen 80;
-       server_name ~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.macsc\.net\.au)?$; ## Change this
+       server_name ~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$; ## Change this
        rewrite ^(.*) https://{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}.domain.com permanent; ## Change this
 	   add_header Content-Security-Policy upgrade-insecure-requests;
 	}
