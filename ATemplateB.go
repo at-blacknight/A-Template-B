@@ -12,6 +12,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ErrorCollector struct {
+	errors []string
+}
+
+func (ec *ErrorCollector) Add(err string) {
+	ec.errors = append(ec.errors, err)
+}
+
+func (ec *ErrorCollector) HasErrors() bool {
+	return len(ec.errors) > 0
+}
+
+func (ec *ErrorCollector) Report() {
+	for _, e := range ec.errors {
+		fmt.Fprintln(os.Stderr, e)
+	}
+}
+
 // Version variable will hold the version info at build time
 var version string
 
@@ -31,6 +49,7 @@ func main() {
 	outputFile := flag.String("output", "nginx.conf", "Path to output file")
 	flag.Parse()
 
+	ec := &ErrorCollector{}
 	//always display version in use
 	fmt.Println("Application Version:", version)
 	// If --version flag is passed exit immediately
@@ -48,7 +67,8 @@ func main() {
 	if *valuesFile != "" {
 		data, err := os.ReadFile(*valuesFile)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "ERROR: failed to read values file %s: %v\n", *valuesFile, err)
+			os.Exit(1)
 		}
 
 		// Determine if the values file is JSON or YAML
@@ -58,7 +78,8 @@ func main() {
 			err = yaml.Unmarshal(data, &DynamicConfig)
 		}
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "ERROR: failed to parse values file %s: %v\n", *valuesFile, err)
+			os.Exit(1)
 		}
 	} else {
 		// No values file provided, initialize empty map to avoid nil pointer in template
@@ -77,7 +98,8 @@ func main() {
 	funcMap["getFile"] = func(path string) string {
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Sprintf("# ERROR: could not read %s: %v", path, err)
+			ec.Add(fmt.Sprintf("# ERROR[getFile]: could not read %s: %v", path, err))
+			return ""
 		}
 		return string(content)
 	}
@@ -85,18 +107,21 @@ func main() {
 	funcMap["getYaml"] = func(path string) string {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Sprintf("# ERROR: could not read %s: %v", path, err)
+			ec.Add(fmt.Sprintf("# ERROR[getYaml]: could not read %s: %v", path, err))
+			return ""
 		}
 
 		var node yaml.Node
 		err = yaml.Unmarshal(data, &node)
 		if err != nil {
-			return fmt.Sprintf("# ERROR: could not parse YAML %s: %v", path, err)
+			ec.Add(fmt.Sprintf("# ERROR[getYaml]: could not parse YAML %s: %v", path, err))
+			return ""
 		}
 
 		formatted, err := yaml.Marshal(&node)
 		if err != nil {
-			return fmt.Sprintf("# ERROR: could not format YAML %s: %v", path, err)
+			ec.Add(fmt.Sprintf("# ERROR[getYaml]: could not format YAML %s: %v", path, err))
+			return ""
 		}
 
 		return string(formatted)
@@ -108,20 +133,29 @@ func main() {
 	// Parse all templates in the same directory
 	tmpl, err := template.New(templateName).Funcs(funcMap).ParseGlob(filepath.Join(templateDir, "*.tmpl*"))
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "ERROR: failed to parse templates in %s: %v\n", templateDir, err)
+		os.Exit(1)
 	}
 
 	// Create and write the final config file
 	output, err := os.Create(*outputFile)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "ERROR: could not write output file %s: %v\n", *outputFile, err)
+		os.Exit(1)
 	}
 	defer output.Close()
 
 	// Execute the originally provided template
 	err = tmpl.ExecuteTemplate(output, templateName, context)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "ERROR: could not execute template %s: %v\n", templateName, err)
+		os.Exit(1)
+	}
+
+	if ec.HasErrors() {
+		fmt.Fprintln(os.Stderr, "\nTemplate rendering completed with errors:")
+		ec.Report()
+		os.Exit(1)
 	}
 
 	fmt.Println("Generated config saved to:", *outputFile)
