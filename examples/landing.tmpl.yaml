@@ -1,0 +1,3 @@
+sitecode: syd
+nodes:
+- {{ getYaml "examples/config.yaml" | indent 2 | trim }}
