@@ -1,9 +1,28 @@
+##
+## Example Values File for nginx.tmpl
+##
+## This file provides configuration values to the nginx.tmpl template.
+## Values are accessed in templates via .Values.<key>
+##
+## Usage:
+##   ATemplateB --template=nginx.tmpl --values=config.yaml --output=nginx.conf
+##
+
+## Server configuration
 port: 1234
 server_name: example.domain.com
+
+## Backend proxy target
 backend: 127.0.0.1:5432
+
+## SSL/TLS configuration
+## Set ssl_enabled to true to enable HTTPS
 ssl_enabled: false
 ssl_cert: /etc/nginx/ssl/cert.pem
 ssl_key: /etc/nginx/ssl/key.pem
+
+## Upstream servers (load balancing pool)
+## These are iterated over in the template using {{ range .upstreams }}
 upstreams:
   - 192.168.1.10:5000
   - 192.168.1.11:5000

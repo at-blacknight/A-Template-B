@@ -1,0 +1,59 @@
+##
+## Production Environment Values
+##
+## Use with:
+##   ATemplateB --template=app-config.tmpl.yaml --values=app-values-prod.yaml --output=config-prod.yaml
+##
+
+env: production
+
+app:
+  name: myapp
+  version: 1.2.0
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+database:
+  host: postgres.prod.example.com
+  port: 5432
+  name: myapp_production
+  username: produser
+  max_connections: 100
+  min_connections: 20
+
+logging:
+  level: warn
+  format: json
+
+features:
+  caching: true
+  analytics: true
+  rate_limiting: true
+  metrics: true
+
+cache:
+  provider: redis
+  host: redis.prod.example.com
+  port: 6379
+  ttl: 7200
+
+cors:
+  allowed_origins:
+    - https://app.example.com
+    - https://www.example.com
+  max_age: 3600
+
+integrations:
+  stripe:
+    enabled: true
+    api_url: https://api.stripe.com/v1
+    api_key: sk_live_...
+    timeout: 30
+
+  sendgrid:
+    enabled: true
+    api_url: https://api.sendgrid.com/v3
+    api_key: SG.live...
+    timeout: 10

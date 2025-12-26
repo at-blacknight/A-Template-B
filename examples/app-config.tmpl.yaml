@@ -1,0 +1,135 @@
+##
+## Application Configuration Template
+##
+## This example shows how to generate environment-specific application configs
+## using conditionals, defaults, and string manipulation.
+##
+## Usage:
+##   ATemplateB --template=app-config.tmpl.yaml --values=app-values-dev.yaml --output=config-dev.yaml
+##   ATemplateB --template=app-config.tmpl.yaml --values=app-values-prod.yaml --output=config-prod.yaml
+##
+## Required values:
+##   - env: Environment name (development, staging, production)
+##   - app.name: Application name
+##   - database.host: Database hostname
+##
+## Optional values:
+##   - debug: Enable debug mode (default: false)
+##   - log_level: Logging level (default: info)
+##   - features.*: Feature flags (default: false)
+##
+
+---
+# {{ .Values.app.name | upper }} Configuration
+# Environment: {{ .Values.env | title }}
+# Generated: {{ now | date "2006-01-02 15:04:05" }}
+
+application:
+  name: {{ .Values.app.name }}
+  version: {{ .Values.app.version | default "1.0.0" }}
+  environment: {{ .Values.env }}
+
+  ## Debug mode automatically enabled for dev, or can be explicitly set
+  debug: {{ if eq .Values.env "development" }}true{{ else }}{{ .Values.debug | default false }}{{ end }}
+
+server:
+  host: {{ .Values.server.host | default "0.0.0.0" }}
+  port: {{ .Values.server.port | default 8080 }}
+
+  ## Timeouts vary by environment
+  {{- if eq .Values.env "production" }}
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  {{- else }}
+  read_timeout: 60s
+  write_timeout: 60s
+  idle_timeout: 300s
+  {{- end }}
+
+database:
+  host: {{ .Values.database.host }}
+  port: {{ .Values.database.port | default 5432 }}
+  name: {{ .Values.database.name | default .Values.app.name }}
+  username: {{ .Values.database.username | required "database.username is required" }}
+
+  ## Connection pool sizing based on environment
+  {{- if eq .Values.env "production" }}
+  max_connections: {{ .Values.database.max_connections | default 50 }}
+  min_connections: {{ .Values.database.min_connections | default 10 }}
+  {{- else }}
+  max_connections: {{ .Values.database.max_connections | default 10 }}
+  min_connections: {{ .Values.database.min_connections | default 2 }}
+  {{- end }}
+
+logging:
+  ## Log level priority: explicit setting > environment default
+  {{- if .Values.log_level }}
+  level: {{ .Values.log_level }}
+  {{- else if eq .Values.env "production" }}
+  level: warn
+  {{- else if eq .Values.env "staging" }}
+  level: info
+  {{- else }}
+  level: debug
+  {{- end }}
+
+  format: {{ .Values.log_format | default "json" }}
+
+  ## Output destination
+  {{- if eq .Values.env "production" }}
+  output: /var/log/{{ .Values.app.name }}/app.log
+  {{- else }}
+  output: stdout
+  {{- end }}
+
+## Feature flags
+features:
+  caching: {{ .Values.features.caching | default false }}
+  analytics: {{ .Values.features.analytics | default false }}
+  rate_limiting: {{ .Values.features.rate_limiting | default (eq .Values.env "production") }}
+  metrics: {{ .Values.features.metrics | default (ne .Values.env "development") }}
+
+{{- if .Values.features.caching }}
+
+## Cache configuration (only rendered if caching is enabled)
+cache:
+  provider: {{ .Values.cache.provider | default "redis" }}
+  host: {{ .Values.cache.host | required "cache.host required when caching is enabled" }}
+  port: {{ .Values.cache.port | default 6379 }}
+  ttl: {{ .Values.cache.ttl | default 3600 }}
+{{- end }}
+
+{{- if .Values.cors }}
+
+## CORS configuration
+cors:
+  allowed_origins:
+  {{- range .Values.cors.allowed_origins }}
+    - {{ . }}
+  {{- end }}
+  allowed_methods:
+  {{- range (.Values.cors.allowed_methods | default (list "GET" "POST" "PUT" "DELETE")) }}
+    - {{ . }}
+  {{- end }}
+  max_age: {{ .Values.cors.max_age | default 3600 }}
+{{- end }}
+
+{{- if .Values.integrations }}
+
+## External integrations
+integrations:
+{{- range $name, $config := .Values.integrations }}
+  {{ $name }}:
+    enabled: {{ $config.enabled | default true }}
+    {{- if $config.api_url }}
+    api_url: {{ $config.api_url }}
+    {{- end }}
+    {{- if $config.api_key }}
+    api_key: {{ $config.api_key }}
+    {{- end }}
+    {{- if $config.timeout }}
+    timeout: {{ $config.timeout }}
+    {{- end }}
+{{- end }}
+{{- end }}

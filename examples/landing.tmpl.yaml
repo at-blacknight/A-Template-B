@@ -1,3 +1,25 @@
+##
+## Landing Page Configuration Template
+##
+## This template demonstrates the getYaml custom function which:
+## 1. Reads an external YAML file
+## 2. Pretty-formats it
+## 3. Includes it in the output
+##
+## This is useful for:
+## - Composing multiple YAML files
+## - Including shared configuration snippets
+## - Dynamic configuration assembly
+##
+## Usage:
+##   ATemplateB --template=landing.tmpl.yaml --output=landing.yaml
+##
+## Note: This template doesn't require a values file!
+##
+
 sitecode: syd
 nodes:
+  ## The getYaml function reads examples/config.yaml and includes it here
+  ## The | indent 2 pipes the output through the Sprig indent function
+  ## The | trim removes extra whitespace
 - {{ getYaml "examples/config.yaml" | indent 2 | trim }}

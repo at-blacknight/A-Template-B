@@ -1,30 +1,65 @@
+##
+## Processor Server Block Template (Sub-template)
+##
+## This is a reusable template block included by sca-nginx.tmpl.conf
+## It demonstrates multi-template composition in ATemplateB.
+##
+## Called from main template like:
+##   {{ template "proc" (dict "item" . "global" $) }}
+##
+## Parameters (passed via dict):
+##   .item - Current processor endpoint object with:
+##     - .item.site: Site code (e.g., "syd", "mel")
+##     - .item.instance: Processor instance number
+##   .global - Root template context for accessing:
+##     - .global.Values.node_role: Node role (e.g., "primary", "backup")
+##
+## This creates two server blocks:
+##   1. HTTPS listener on port 443 with WebSocket support
+##   2. HTTP->HTTPS redirect on port 80
+##
+
 {{- define "proc" }}
 	##---------- Processor {{ .item.instance }} Stereo Tools -------------
+
+	## HTTPS server block with WebSocket proxy support
 	server {
 		listen			443 ssl;
-        server_name  	~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$; ## Change this
+		## Regex server_name matches: syd-proc1-primary.domain.com
+        server_name  	~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$;
 		add_header Content-Security-Policy upgrade-insecure-requests;
-				
+
 		location / {
+			## WebSocket upgrade headers
 			proxy_http_version	1.1;
 			proxy_cache_bypass	$http_upgrade;
 			proxy_set_header Upgrade			$http_upgrade;
 			proxy_set_header Connection			"upgrade";
+
+			## Standard proxy headers
 			proxy_set_header Host				$host;
 			proxy_set_header X-Real-IP			$remote_addr;
 			proxy_set_header X-Forwarded-For	$proxy_add_x_forwarded_for;
 			proxy_set_header X-Forwarded-Proto	$scheme;
+
+			## Proxy to localhost on port 808X where X is the instance number
+			## Example: instance 1 -> 8081, instance 2 -> 8082
 			proxy_pass http://127.0.0.1:808{{ .item.instance }}/;
+
+			## Connection timeouts
 			proxy_read_timeout 30;
 			proxy_connect_timeout 30;
 			proxy_send_timeout 30;
-			
         }
     }
-	server { ## Processor {{ .item.instance }} Stereo Tools to https
+
+	## HTTP to HTTPS redirect
+	server {
        listen 80;
-       server_name ~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$; ## Change this
-       rewrite ^(.*) https://{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}.domain.com permanent; ## Change this
+       server_name ~{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}(\.domain\.com)?$;
+
+       ## Permanent redirect to HTTPS
+       rewrite ^(.*) https://{{ .item.site }}-proc{{ .item.instance }}-{{ .global.Values.node_role }}.domain.com permanent;
 	   add_header Content-Security-Policy upgrade-insecure-requests;
 	}
 {{- end }}

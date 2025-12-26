@@ -1,3 +1,29 @@
+##
+## Simple Nginx Reverse Proxy Template
+##
+## This template demonstrates basic ATemplateB features:
+## - Accessing values with .Values.<key>
+## - Looping with {{ range }}
+## - Conditionals with {{ if }}
+## - Whitespace control with {{- and -}}
+##
+## Usage:
+##   ATemplateB --template=nginx.tmpl --values=config.yaml --output=nginx.conf
+##
+## Required values:
+##   - port: listening port number
+##   - server_name: domain name for this server
+##   - backend: upstream backend address (host:port)
+##   - upstreams: array of upstream server addresses
+##
+## Optional values:
+##   - ssl_enabled: enable SSL/TLS (default: false)
+##   - ssl_cert: path to SSL certificate (required if ssl_enabled=true)
+##   - ssl_key: path to SSL private key (required if ssl_enabled=true)
+##
+
+## Upstream backend configuration
+## The {{- removes whitespace before the line
 upstream backend {
     {{- range .upstreams }}
     server {{ . }};
@@ -5,15 +31,19 @@ upstream backend {
 }
 
 server {
+    ## Basic HTTP listener on configured port
     listen {{ .port }};
     server_name {{ .server_name }};
 
+    ## Optional HTTPS configuration
+    ## Only rendered if ssl_enabled is true in values
     {{- if .ssl_enabled }}
     listen 443 ssl;
     ssl_certificate {{ .ssl_cert }};
     ssl_certificate_key {{ .ssl_key }};
     {{- end }}
 
+    ## Proxy all requests to the backend
     location / {
         proxy_pass http://{{ .backend }};
     }

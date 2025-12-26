@@ -1,0 +1,58 @@
+##
+## Development Environment Values
+##
+## Use with:
+##   ATemplateB --template=app-config.tmpl.yaml --values=app-values-dev.yaml --output=config-dev.yaml
+##
+
+env: development
+
+app:
+  name: myapp
+  version: 1.2.0
+
+server:
+  host: localhost
+  port: 3000
+
+database:
+  host: localhost
+  port: 5432
+  name: myapp_dev
+  username: devuser
+  max_connections: 5
+
+logging:
+  level: debug
+  format: text
+
+features:
+  caching: false
+  analytics: false
+  rate_limiting: false
+  metrics: false
+
+cors:
+  allowed_origins:
+    - http://localhost:3000
+    - http://localhost:8080
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  max_age: 86400
+
+integrations:
+  stripe:
+    enabled: false
+    api_url: https://api.stripe.com/v1
+    api_key: sk_test_...
+    timeout: 30
+
+  sendgrid:
+    enabled: false
+    api_url: https://api.sendgrid.com/v3
+    api_key: SG.test...
+    timeout: 10
