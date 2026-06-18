@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -137,24 +138,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create and write the final config file
-	output, err := os.Create(*outputFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: could not write output file %s: %v\n", *outputFile, err)
-		os.Exit(1)
-	}
-	defer output.Close()
-
-	// Execute the originally provided template
-	err = tmpl.ExecuteTemplate(output, templateName, context)
+	// Render into a buffer first, so that a failure midway cannot clobber an
+	// existing output file with partial or empty content.
+	var buf bytes.Buffer
+	err = tmpl.ExecuteTemplate(&buf, templateName, context)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: could not execute template %s: %v\n", templateName, err)
 		os.Exit(1)
 	}
 
+	// If any getFile/getYaml calls failed, report and exit without writing the
+	// output, so we never persist a misleading config.
 	if ec.HasErrors() {
 		fmt.Fprintln(os.Stderr, "\nTemplate rendering completed with errors:")
 		ec.Report()
+		os.Exit(1)
+	}
+
+	// Only now that rendering has fully succeeded do we write the output file.
+	if err := os.WriteFile(*outputFile, buf.Bytes(), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: could not write output file %s: %v\n", *outputFile, err)
 		os.Exit(1)
 	}
 

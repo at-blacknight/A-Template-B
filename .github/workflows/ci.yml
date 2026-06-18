@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - rc
+      - uat
+      - dev
+      - alpha
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: at-blacknight/atb-ci/.github/workflows/go-release.yml@main
+    with:
+      go-version: '1.24'
+      binary-name: 'ATemplateB'
+      platforms: 'linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64'
+      enable-windows-resource: true
+      windows-company-name: 'AT-BlacKnight'
+      windows-product-name: 'ATemplateB'
+      windows-file-description: 'A Template B - Template Engine'
